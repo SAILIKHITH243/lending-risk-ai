@@ -14,23 +14,21 @@ import streamlit as st
 
 PROJECT_DIR = Path(__file__).resolve().parent
 MODEL_DIR = PROJECT_DIR / "models"
-
 LOGISTIC_PATH = MODEL_DIR / "logistic_regression.joblib"
 FOREST_PATH = MODEL_DIR / "random_forest.joblib"
 
-# Colour palette
 BURGUNDY = "#4A102A"
 BURGUNDY_LIGHT = "#8C2448"
 GOLD = "#D6AE61"
 IVORY = "#FBF6EF"
-
 WHITE = "#FFFFFF"
 TEXT = "#3B1830"
 MUTED = "#735E68"
 BORDER = "#E7D8C7"
 PALE_GOLD = "#F4E9D5"
 
-# Educational demonstration thresholds only
+# Educational demonstration rules only.
+# These are not official bank lending standards.
 RISK_THRESHOLD = 0.50
 LOAN_TO_INCOME_REVIEW_LIMIT = 0.50
 MODEL_SCORE_DIFFERENCE_LIMIT = 0.20
@@ -41,7 +39,7 @@ MODEL_SCORE_DIFFERENCE_LIMIT = 0.20
 # ============================================================
 
 st.set_page_config(
-    page_title="Lending Risk AI | Credit Analysis",
+    page_title="Lending Risk AI | Loan Credit Analysis",
     page_icon="◆",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -49,22 +47,30 @@ st.set_page_config(
 
 
 # ============================================================
-# GLOBAL CSS — BURGUNDY & GOLD
+# GLOBAL THEME
 # ============================================================
 
 st.markdown(
     """
     <style>
-    /* Main application background */
-    html, body,
-    [data-testid="stAppViewContainer"],
-    [data-testid="stMain"] {
-        background: #FBF6EF !important;
+    :root {
+        --burgundy: #4A102A;
+        --burgundy-light: #8C2448;
+        --gold: #D6AE61;
+        --ivory: #FBF6EF;
+        --text: #3B1830;
+        --muted: #735E68;
+        --border: #E7D8C7;
+    }
+
+    html, body, [data-testid="stAppViewContainer"],
+    [data-testid="stMain"], [data-testid="stMainBlockContainer"] {
+        background-color: #FBF6EF !important;
         color: #3B1830 !important;
     }
 
     [data-testid="stHeader"] {
-        background: #FBF6EF !important;
+        background-color: #FBF6EF !important;
     }
 
     .block-container {
@@ -73,16 +79,19 @@ st.markdown(
         padding-bottom: 3rem !important;
     }
 
-    /* Main headings and readable body text */
+    /* Main page headings and text */
     [data-testid="stMain"] h1,
     [data-testid="stMain"] h2,
     [data-testid="stMain"] h3,
-    [data-testid="stMain"] h4 {
+    [data-testid="stMain"] h4,
+    [data-testid="stMain"] h5,
+    [data-testid="stMain"] h6 {
         color: #4A102A !important;
     }
 
     [data-testid="stMain"] p,
-    [data-testid="stMain"] label {
+    [data-testid="stMain"] label,
+    [data-testid="stMain"] [data-testid="stWidgetLabel"] {
         color: #3B1830 !important;
     }
 
@@ -90,6 +99,7 @@ st.markdown(
     [data-testid="stSidebar"],
     [data-testid="stSidebar"] > div:first-child {
         background-color: #4A102A !important;
+        border-right: 2px solid #D6AE61 !important;
     }
 
     [data-testid="stSidebar"] h1,
@@ -98,34 +108,52 @@ st.markdown(
     [data-testid="stSidebar"] h4,
     [data-testid="stSidebar"] p,
     [data-testid="stSidebar"] label,
-    [data-testid="stSidebar"] span,
     [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] {
         color: #FBF6EF !important;
+    }
+
+    [data-testid="stSidebar"] h3 {
+        font-size: 1.45rem !important;
+        font-weight: 750 !important;
+        line-height: 1.3 !important;
+        margin-top: 0.4rem !important;
+    }
+
+    [data-testid="stSidebar"] [data-testid="stCaptionContainer"] {
+        color: #E6D6DB !important;
     }
 
     [data-testid="stSidebar"] hr {
         border-color: #D6AE61 !important;
     }
 
+    .sidebar-eyebrow {
+        color: #D6AE61 !important;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+    }
+
     /* Hero banner */
     .hero {
         background: linear-gradient(
-            115deg, #4A102A, #8C2448
+            115deg, #4A102A 0%, #8C2448 100%
         ) !important;
         color: #FBF6EF !important;
+        padding: 2.2rem 2.25rem;
         border: 1px solid #D6AE61 !important;
         border-bottom: 4px solid #D6AE61 !important;
-        border-radius: 18px !important;
-        padding: 2.2rem 2.25rem;
+        border-radius: 18px;
         margin-bottom: 1.5rem;
         box-shadow: 0 10px 28px rgba(74, 16, 42, 0.12);
     }
 
     .hero h1 {
         color: #FBF6EF !important;
-        font-size: 2.3rem !important;
+        font-size: 2.35rem !important;
         font-weight: 750 !important;
-        margin: 0 0 0.6rem 0;
+        margin: 0 0 0.5rem 0;
     }
 
     .hero p {
@@ -159,55 +187,51 @@ st.markdown(
         margin-bottom: 0.5rem;
     }
 
-    /* Form container */
+    /* Form and input controls */
     [data-testid="stForm"] {
-        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
         border: 1px solid #E7D8C7 !important;
         border-radius: 16px !important;
         padding: 1.3rem !important;
         box-shadow: 0 5px 16px rgba(74, 16, 42, 0.05);
     }
 
-    /* Input fields */
     [data-testid="stNumberInput"] input,
     [data-testid="stTextInput"] input,
-    [data-testid="stTextArea"] textarea {
-        background: #FBF6EF !important;
+    [data-testid="stTextArea"] textarea,
+    [data-testid="stDateInput"] input {
+        background-color: #FBF6EF !important;
         color: #3B1830 !important;
-        -webkit-text-fill-color: #3B1830 !important;
         border: 1px solid #D6AE61 !important;
         border-radius: 8px !important;
+        -webkit-text-fill-color: #3B1830 !important;
     }
 
-    /* Dropdowns */
     [data-testid="stSelectbox"] [data-baseweb="select"] > div,
     [data-testid="stMultiSelect"] [data-baseweb="select"] > div {
-        background: #FBF6EF !important;
+        background-color: #FBF6EF !important;
         color: #3B1830 !important;
         border-color: #D6AE61 !important;
         border-radius: 8px !important;
     }
 
-    [data-baseweb="popover"],
-    [data-baseweb="menu"] {
-        background: #FFFFFF !important;
+    [data-baseweb="popover"], [data-baseweb="menu"] {
+        background-color: #FFFFFF !important;
     }
 
-    [data-baseweb="menu"] * {
+    [data-baseweb="menu"] *, [data-baseweb="select"] * {
         color: #3B1830 !important;
     }
 
     [data-testid="stNumberInput"] button {
-        background: #F4E9D5 !important;
+        background-color: #F4E9D5 !important;
         color: #4A102A !important;
         border-color: #D6AE61 !important;
     }
 
-    /* Primary buttons and button text */
+    /* Primary buttons and their labels */
     [data-testid="stFormSubmitButton"] button,
     [data-testid="stFormSubmitButton"] button *,
-    div.stFormSubmitButton button,
-    div.stFormSubmitButton button *,
     div.stButton > button[kind="primary"],
     div.stButton > button[kind="primary"] * {
         background-color: #4A102A !important;
@@ -218,7 +242,6 @@ st.markdown(
     }
 
     [data-testid="stFormSubmitButton"] button,
-    div.stFormSubmitButton button,
     div.stButton > button {
         border: 1px solid #D6AE61 !important;
         border-radius: 9px !important;
@@ -227,7 +250,6 @@ st.markdown(
     }
 
     [data-testid="stFormSubmitButton"] button:hover,
-    div.stFormSubmitButton button:hover,
     div.stButton > button[kind="primary"]:hover {
         background-color: #8C2448 !important;
         color: #FFFFFF !important;
@@ -236,7 +258,7 @@ st.markdown(
 
     /* Metric cards */
     [data-testid="stMetric"] {
-        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
         border: 1px solid #E7D8C7 !important;
         border-top: 3px solid #D6AE61 !important;
         border-radius: 12px !important;
@@ -254,14 +276,13 @@ st.markdown(
         font-weight: 750 !important;
     }
 
-    /* Progress bars */
     [data-testid="stProgress"] > div > div {
         background-color: #8C2448 !important;
     }
 
-    /* Eligibility result card */
+    /* Screening result */
     .result-panel {
-        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
         border: 1px solid #D6AE61 !important;
         border-left: 6px solid #8C2448 !important;
         border-radius: 14px !important;
@@ -286,20 +307,18 @@ st.markdown(
         margin-top: 0.4rem;
     }
 
-    /* Tabs, alerts and expanders */
     [data-baseweb="tab"][aria-selected="true"] {
         color: #4A102A !important;
         border-bottom-color: #D6AE61 !important;
     }
 
-    [data-testid="stAlert"],
-    [data-testid="stExpander"] {
+    [data-testid="stAlert"], [data-testid="stExpander"] {
         border-color: #E7D8C7 !important;
         border-radius: 10px !important;
     }
 
     [data-testid="stExpander"] {
-        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
     }
 
     hr {
@@ -315,17 +334,9 @@ st.markdown(
     }
 
     @media (max-width: 700px) {
-        .hero {
-            padding: 1.5rem;
-        }
-
-        .hero h1 {
-            font-size: 1.8rem !important;
-        }
-
-        .result-value {
-            font-size: 1.25rem;
-        }
+        .hero { padding: 1.5rem; }
+        .hero h1 { font-size: 1.8rem !important; }
+        .result-value { font-size: 1.25rem; }
     }
     </style>
     """,
@@ -351,14 +362,14 @@ def load_models():
             f"Random Forest model not found: {FOREST_PATH}"
         )
 
-    logistic_model = joblib.load(LOGISTIC_PATH)
-    forest_model = joblib.load(FOREST_PATH)
-
-    return logistic_model, forest_model
+    return (
+        joblib.load(LOGISTIC_PATH),
+        joblib.load(FOREST_PATH),
+    )
 
 
 # ============================================================
-# HERO HEADER
+# HERO BANNER
 # ============================================================
 
 st.markdown(
@@ -381,65 +392,41 @@ st.markdown(
 
 # ============================================================
 # SIDEBAR
+# Uses Streamlit text components so the HTML source is not shown.
 # ============================================================
 
 with st.sidebar:
-
     st.markdown(
-        """
-        <div style="padding: 0.6rem 0 0.4rem 0;">
-            <div style="
-                color: #D6AE61;
-                font-size: 0.72rem;
-                font-weight: 800;
-                letter-spacing: 0.14em;
-                text-transform: uppercase;">
-                Credit Intelligence
-            </div>
-
-            <div style="
-                color: #FBF6EF;
-                font-size: 1.45rem;
-                font-weight: 750;
-                line-height: 1.3;
-                margin-top: 0.4rem;">
-                Lending Risk AI
-            </div>
-
-            <div style="
-                color: #FBF6EF;
-                font-size: 0.88rem;
-                margin-top: 0.5rem;">
-                Loan Credit Analysis Platform
-            </div>
-        </div>
-        """,
+        '<div class="sidebar-eyebrow">CREDIT INTELLIGENCE</div>',
         unsafe_allow_html=True,
     )
 
+    # These are real Streamlit components, not a displayed HTML snippet.
+    st.subheader("Lending Risk AI")
+    st.caption("Loan Credit Analysis Platform")
+
     st.divider()
 
-    st.subheader("About the project")
-
+    st.markdown("### About the Project")
     st.write(
-        "A Python-based machine learning prototype that compares "
-        "Logistic Regression and Random Forest for historical loan-default analysis."
+        "A Python-based machine learning application for analysing "
+        "historical loan data and comparing credit-risk model scores."
     )
 
     st.divider()
 
-    st.subheader("Assessment scope")
-
+    st.markdown("### Assessment Information")
     st.write(
-        "The application uses information available in the selected dataset. "
-        "It does not access actual CIBIL reports or make official lending decisions."
+        "This application compares Logistic Regression and Random Forest. "
+        "Its preliminary screening result is for educational purposes "
+        "and is not an official bank loan approval or rejection."
     )
 
     st.divider()
 
     st.markdown(
         """
-        <div style="color: #FBF6EF; font-size: 0.8rem; line-height: 1.6;">
+        <div style="color: #FBF6EF; font-size: 0.80rem; line-height: 1.6;">
             <span style="color: #D6AE61; font-weight: 750;">
                 MODEL NOTE
             </span>
@@ -456,10 +443,8 @@ with st.sidebar:
 # ============================================================
 
 st.markdown(
-    """
-    <div class="section-kicker">Applicant profile</div>
-    <div class="section-title">Applicant Information</div>
-    """,
+    '<div class="section-kicker">APPLICANT PROFILE</div>'
+    '<div class="section-title">Applicant Information</div>',
     unsafe_allow_html=True,
 )
 
@@ -470,63 +455,45 @@ st.write(
 )
 
 with st.form("applicant_form", clear_on_submit=False):
-
     st.markdown("### Personal and financial details")
 
     col1, col2, col3 = st.columns(3)
 
     with col1:
         age = st.number_input(
-            "Applicant age",
-            min_value=18,
-            max_value=100,
-            value=30,
-            step=1,
+            "Applicant age", min_value=18, max_value=100,
+            value=30, step=1,
         )
 
     with col2:
         annual_income = st.number_input(
-            "Annual income",
-            min_value=1,
-            value=600000,
-            step=10000,
+            "Annual income", min_value=1, value=600000, step=10000,
         )
 
     with col3:
         employment_length = st.number_input(
             "Employment length (years)",
-            min_value=0.0,
-            max_value=100.0,
-            value=5.0,
-            step=1.0,
+            min_value=0.0, max_value=100.0, value=5.0, step=1.0,
         )
 
     col4, col5, col6 = st.columns(3)
 
     with col4:
         loan_amount = st.number_input(
-            "Requested loan amount",
-            min_value=1,
-            value=200000,
-            step=10000,
+            "Requested loan amount", min_value=1, value=200000, step=10000,
         )
 
     with col5:
         home_ownership = st.selectbox(
-            "Home ownership",
-            ["RENT", "OWN", "MORTGAGE", "OTHER"],
+            "Home ownership", ["RENT", "OWN", "MORTGAGE", "OTHER"],
         )
 
     with col6:
         loan_intent = st.selectbox(
             "Loan purpose",
             [
-                "PERSONAL",
-                "EDUCATION",
-                "MEDICAL",
-                "VENTURE",
-                "HOMEIMPROVEMENT",
-                "DEBTCONSOLIDATION",
+                "PERSONAL", "EDUCATION", "MEDICAL", "VENTURE",
+                "HOMEIMPROVEMENT", "DEBTCONSOLIDATION",
             ],
         )
 
@@ -538,23 +505,18 @@ with st.form("applicant_form", clear_on_submit=False):
         previous_default = st.selectbox(
             "Previous default on file",
             ["N", "Y"],
-            format_func=lambda value: (
-                "No" if value == "N" else "Yes"
-            ),
+            format_func=lambda value: "No" if value == "N" else "Yes",
         )
 
     with col8:
         credit_history = st.number_input(
             "Credit history length (years)",
-            min_value=0,
-            max_value=100,
-            value=5,
-            step=1,
+            min_value=0, max_value=100, value=5, step=1,
         )
 
     st.caption(
         "The dataset does not include an actual numerical CIBIL score. "
-        "This form uses the credit-history features that are available."
+        "This form uses the credit-history information available in the dataset."
     )
 
     submitted = st.form_submit_button(
@@ -569,7 +531,6 @@ with st.form("applicant_form", clear_on_submit=False):
 # ============================================================
 
 if submitted:
-
     validation_errors = []
 
     if employment_length > age:
@@ -583,20 +544,16 @@ if submitted:
         )
 
     if validation_errors:
-
         for validation_error in validation_errors:
             st.error(validation_error)
 
     else:
-
         try:
             logistic_model, forest_model = load_models()
 
-            loan_to_income_ratio = float(
-                loan_amount / annual_income
-            )
+            loan_to_income_ratio = float(loan_amount / annual_income)
 
-            # Feature names match the original training scripts.
+            # These feature names match the model training scripts.
             applicant = pd.DataFrame(
                 [
                     {
@@ -613,41 +570,31 @@ if submitted:
                 ]
             )
 
-            # Model scores for class 1: default.
-            # Scores are not calibrated real-world probabilities.
+            # Scores for class 1 (default), not calibrated probabilities.
             logistic_score = float(
                 logistic_model.predict_proba(applicant)[0, 1]
             )
-
             forest_score = float(
                 forest_model.predict_proba(applicant)[0, 1]
             )
 
-            score_difference = abs(
-                logistic_score - forest_score
-            )
+            score_difference = abs(logistic_score - forest_score)
 
-            logistic_flags_default = (
-                logistic_score >= RISK_THRESHOLD
-            )
-
-            forest_flags_default = (
-                forest_score >= RISK_THRESHOLD
-            )
+            logistic_flags_default = logistic_score >= RISK_THRESHOLD
+            forest_flags_default = forest_score >= RISK_THRESHOLD
 
             models_disagree = (
                 logistic_flags_default != forest_flags_default
                 or score_difference >= MODEL_SCORE_DIFFERENCE_LIMIT
             )
 
-            # Demonstration screening rules; not official bank policy.
+            # Educational demonstration screening rules only.
             screening_reasons = []
 
             if loan_to_income_ratio > 1.0:
                 screening_reasons.append(
                     "Requested loan amount exceeds annual income."
                 )
-
             elif loan_to_income_ratio > LOAN_TO_INCOME_REVIEW_LIMIT:
                 screening_reasons.append(
                     "Loan amount exceeds the demonstration "
@@ -676,83 +623,42 @@ if submitted:
             else:
                 eligibility_status = "ELIGIBLE UNDER DEMO RULES"
 
-            # ------------------------------------------------
-            # APPLICANT SUMMARY
-            # ------------------------------------------------
-
+            # Applicant summary
             st.divider()
 
             st.markdown(
-                """
-                <div class="section-kicker">Assessment output</div>
-                <div class="section-title">
-                    Credit Risk Assessment Results
-                </div>
-                """,
+                '<div class="section-kicker">ASSESSMENT OUTPUT</div>'
+                '<div class="section-title">Credit Risk Assessment Results</div>',
                 unsafe_allow_html=True,
             )
 
             st.caption(
-                "Results are generated by the trained models and "
-                "demonstration screening rules in this project."
+                "Results are generated by the trained models and this "
+                "project's demonstration rules."
             )
 
             metric1, metric2, metric3 = st.columns(3)
+            metric1.metric("Annual income", f"{annual_income:,.0f}")
+            metric2.metric("Requested loan", f"{loan_amount:,.0f}")
+            metric3.metric("Loan / income ratio", f"{loan_to_income_ratio:.1%}")
 
-            metric1.metric(
-                "Annual income",
-                f"{annual_income:,.0f}",
-            )
-
-            metric2.metric(
-                "Requested loan",
-                f"{loan_amount:,.0f}",
-            )
-
-            metric3.metric(
-                "Loan / income ratio",
-                f"{loan_to_income_ratio:.1%}",
-            )
-
-            # ------------------------------------------------
-            # MODEL SCORES
-            # ------------------------------------------------
-
+            # Model scores
             st.markdown("### Machine Learning Model Results")
-
             score_col1, score_col2 = st.columns(2)
 
             with score_col1:
-
                 st.markdown("**Logistic Regression**")
-
-                st.metric(
-                    "Default-class score",
-                    f"{logistic_score:.2%}",
-                )
-
-                st.progress(
-                    float(np.clip(logistic_score, 0.0, 1.0))
-                )
-
+                st.metric("Default-class score", f"{logistic_score:.2%}")
+                st.progress(float(np.clip(logistic_score, 0.0, 1.0)))
                 st.caption(
                     "Uncalibrated default-class score; not a guaranteed "
                     "real-world probability."
                 )
 
             with score_col2:
-
                 st.markdown("**Random Forest**")
-
-                st.metric(
-                    "Default-class score",
-                    f"{forest_score:.2%}",
-                )
-
-                st.progress(
-                    float(np.clip(forest_score, 0.0, 1.0))
-                )
-
+                st.metric("Default-class score", f"{forest_score:.2%}")
+                st.progress(float(np.clip(forest_score, 0.0, 1.0)))
                 st.caption(
                     "Uncalibrated default-class score; not a guaranteed "
                     "real-world probability."
@@ -763,25 +669,15 @@ if submitted:
                 f"{score_difference:.2%}",
             )
 
-            # ------------------------------------------------
-            # BURGUNDY & GOLD COMPARISON CHART
-            # ------------------------------------------------
-
+            # Burgundy & Gold comparison chart
             chart_data = pd.DataFrame(
                 {
-                    "Model": [
-                        "Logistic Regression",
-                        "Random Forest",
-                    ],
-                    "Score": [
-                        logistic_score,
-                        forest_score,
-                    ],
+                    "Model": ["Logistic Regression", "Random Forest"],
+                    "Score": [logistic_score, forest_score],
                 }
             )
 
             fig, ax = plt.subplots(figsize=(8, 3.4))
-
             fig.patch.set_facecolor(IVORY)
             ax.set_facecolor(WHITE)
 
@@ -793,13 +689,7 @@ if submitted:
             )
 
             ax.set_xlim(0, 1)
-
-            ax.set_xlabel(
-                "Default-class score (0–1)",
-                color=TEXT,
-                labelpad=10,
-            )
-
+            ax.set_xlabel("Default-class score (0–1)", color=TEXT, labelpad=10)
             ax.set_title(
                 "Model Score Comparison",
                 color=BURGUNDY,
@@ -807,35 +697,20 @@ if submitted:
                 pad=14,
                 fontweight="bold",
             )
-
             ax.tick_params(axis="x", colors=MUTED)
-
-            ax.tick_params(
-                axis="y",
-                colors=TEXT,
-                length=0,
-                pad=10,
-            )
-
+            ax.tick_params(axis="y", colors=TEXT, length=0, pad=10)
             ax.xaxis.grid(
-                True,
-                linestyle="--",
-                linewidth=0.7,
-                alpha=0.35,
-                color=GOLD,
+                True, linestyle="--", linewidth=0.7,
+                alpha=0.35, color=GOLD,
             )
-
             ax.set_axisbelow(True)
 
             for spine in ax.spines.values():
                 spine.set_visible(False)
 
             for bar, score in zip(bars, chart_data["Score"]):
-
-                text_x = min(score + 0.025, 0.88)
-
                 ax.text(
-                    text_x,
+                    min(score + 0.025, 0.88),
                     bar.get_y() + bar.get_height() / 2,
                     f"{score:.1%}",
                     va="center",
@@ -845,45 +720,26 @@ if submitted:
                 )
 
             fig.tight_layout()
-
-            st.pyplot(
-                fig,
-                use_container_width=True,
-            )
-
+            st.pyplot(fig, use_container_width=True)
             plt.close(fig)
 
-            # ------------------------------------------------
-            # MODEL AGREEMENT
-            # ------------------------------------------------
-
             if models_disagree:
-
                 st.warning(
                     "The models disagree or their scores differ substantially. "
                     "Further review is important."
                 )
-
             else:
-
                 st.info(
-                    "The configured model-disagreement rule was not triggered. "
+                    "The configured disagreement rule was not triggered. "
                     "This does not guarantee a correct prediction."
                 )
 
-            # ------------------------------------------------
-            # FINAL PRELIMINARY SCREENING RESULT
-            # ------------------------------------------------
-
+            # Final screening result
             st.divider()
 
             st.markdown(
-                """
-                <div class="section-kicker">Decision support</div>
-                <div class="section-title">
-                    Preliminary Screening Result
-                </div>
-                """,
+                '<div class="section-kicker">DECISION SUPPORT</div>'
+                '<div class="section-title">Preliminary Screening Result</div>',
                 unsafe_allow_html=True,
             )
 
@@ -902,57 +758,42 @@ if submitted:
             )
 
             if screening_reasons:
-
-                st.markdown(
-                    "**Reasons identified by the screening rules**"
-                )
-
+                st.markdown("**Reasons identified by the screening rules**")
                 for reason in screening_reasons:
                     st.write(f"- {reason}")
-
             else:
-
                 st.success(
                     "No configured demonstration screening rules were triggered."
                 )
-
-            # ------------------------------------------------
-            # LIMITATIONS
-            # ------------------------------------------------
 
             with st.expander(
                 "Important limitations and responsible use",
                 expanded=True,
             ):
-
                 st.write(
-                    "This is an educational credit-risk prototype. The "
-                    "screening rules are not official bank lending criteria. "
-                    "Model scores are not calibrated real-world default "
-                    "probabilities. The dataset does not contain an actual "
-                    "numerical CIBIL score. Passing this demonstration screen "
-                    "does not guarantee approval, and failing it does not "
-                    "establish that a borrower cannot repay. Real lending "
-                    "decisions require verified information, affordability "
-                    "assessment, appropriate lender policies, and human review."
+                    "This is an educational credit-risk prototype. Its screening "
+                    "rules are not official bank lending criteria. Model scores "
+                    "are not calibrated real-world default probabilities. The "
+                    "dataset does not contain an actual numerical CIBIL score. "
+                    "Passing the demonstration screen does not guarantee loan "
+                    "approval, and failing it does not establish that a borrower "
+                    "cannot repay. Real lending decisions require verified "
+                    "information, affordability assessment, appropriate lender "
+                    "policies, and human review."
                 )
 
         except FileNotFoundError as error:
-
             st.error(str(error))
-
             st.info(
                 "Run `python src/05_compare_models.py` from the project root "
                 "to create the required model files."
             )
 
         except Exception as error:
-
             st.error(
                 "The assessment could not be completed. Check the model files "
                 "and terminal for details."
             )
-
             st.exception(error)
 
 
