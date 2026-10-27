@@ -1,5 +1,9 @@
 ﻿# Lending Risk AI: Loan Credit Analysis Using Machine Learning
+##  Live Demo
 
+**Try the application:** [Lending Risk AI — Open Live Website](https://lending-risk-ai-azlsdufbo5bvxcz3qg3vpe.streamlit.app/)
+
+**Source Code:** [GitHub Repository](https://github.com/SAILIKHITH243/lending-risk-ai)
 ## Overview
 
 Lending Risk AI is a Python-based machine learning project that analyzes historical loan data to identify patterns associated with loan defaults.
